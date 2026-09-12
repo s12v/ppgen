@@ -144,6 +144,31 @@ fn bits_chooses_the_word_count() {
     assert_eq!(single_line(&o).split('/').count(), 6);
 }
 
+const ALNUM: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const SYMBOLS: &str = "!@#$%^&*()-_=+[]{};:,.<>?/";
+
+#[test]
+fn password_mode() {
+    let o = ppgen(&["-p"]);
+    assert!(o.status.success());
+    let pw = single_line(&o);
+    assert_eq!(pw.len(), 16);
+    assert!(pw.chars().all(|c| ALNUM.contains(c)), "{pw:?}");
+
+    let o = ppgen(&["-p", "40", "--symbols", "-v"]);
+    assert!(o.status.success());
+    let pw = single_line(&o);
+    assert_eq!(pw.len(), 40);
+    assert!(
+        pw.chars().all(|c| ALNUM.contains(c) || SYMBOLS.contains(c)),
+        "{pw:?}"
+    );
+    assert_eq!(stderr(&o), "entropy: 40 chars x 6.46 bits = ~258.4 bits\n");
+
+    let o = ppgen(&["-p", "-b", "80"]);
+    assert_eq!(single_line(&o).len(), 14);
+}
+
 #[test]
 fn two_runs_differ() {
     // 65 bits of entropy: a collision here means the RNG is broken.
@@ -174,6 +199,10 @@ fn bad_arguments_go_to_stderr_with_exit_two() {
         &["-b", "0"],
         &["-b", "900"],
         &["-b", "80", "-w", "5"],
+        &["-p", "0"],
+        &["-p", "20", "-b", "80"],
+        &["-p", "-w", "3"],
+        &["--symbols"],
     ];
     for args in cases {
         let o = ppgen(args);

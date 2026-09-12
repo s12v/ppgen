@@ -2,7 +2,7 @@
 name = "ppgen"
 version = "0.1.1"
 edition = "2024"
-description = "Diceware passphrase generator (EFF large wordlist)"
+description = "Diceware passphrase and random password generator"
 license = "MIT"
 
 [dependencies]

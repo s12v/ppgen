@@ -9,38 +9,96 @@ const DEFAULT_WORDS: u32 = 5;
 const MAX_WORDS: u32 = 64;
 const MAX_DIGITS: u32 = 8;
 
+/// Password alphabet: 62 alphanumerics (~5.95 bits each), optionally plus
+/// 26 symbols (~6.46 bits each). Quotes, backslash, pipe and space are left
+/// out on purpose: they break shells and web forms more often than they help.
+const ALNUM: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const SYMBOLS: &[u8] = b"!@#$%^&*()-_=+[]{};:,.<>?/";
+const DEFAULT_PASSWORD_LEN: u32 = 16;
+const MAX_PASSWORD_LEN: u32 = 256;
+
 const USAGE: &str = "\
 ppgen - diceware passphrase generator
 
 Usage: ppgen [options]
 
+Passphrase (default):
   -w, --words <N>    words in the passphrase (default: 5, max: 64)
-  -b, --bits <N>     instead of -w: use as many words as needed for N bits of entropy
   -d, --sep <S>      separator between words (default: '-')
   -n, --digits <N>   append a random number, N digits (default: 0, max: 8)
   -c, --capitalize   capitalize each word (adds no entropy; for password policies)
+
+Password:
+  -p, --password [N] random password of N characters from A-Za-z0-9 (default: 16, max: 256)
+      --symbols      also use !@#$%^&*()-_=+[]{};:,.<>?/
+
+Both:
+  -b, --bits <N>     instead of -w or -p N: use the length needed for N bits of entropy
   -v, --verbose      print the entropy estimate to stderr
   -h, --help         print this help
 
 Wordlist: EFF large wordlist, 7776 words, ~12.9 bits per word.
+Characters: ~5.95 bits each from A-Za-z0-9, ~6.46 with --symbols.
 ";
 
-struct Opts {
-    words: u32,
-    sep: String,
-    digits: u32,
-    capitalize: bool,
-    verbose: bool,
+enum Kind {
+    Passphrase {
+        words: u32,
+        sep: String,
+        digits: u32,
+        capitalize: bool,
+    },
+    Password {
+        len: u32,
+        symbols: bool,
+    },
 }
 
-impl Opts {
-    fn entropy_bits(&self) -> f64 {
-        f64::from(self.words) * bits_per_word() + f64::from(self.digits) * 10f64.log2()
-    }
+struct Opts {
+    kind: Kind,
+    verbose: bool,
 }
 
 fn bits_per_word() -> f64 {
     (EXPECTED_WORDS as f64).log2()
+}
+
+fn bits_per_char(symbols: bool) -> f64 {
+    (alphabet(symbols).len() as f64).log2()
+}
+
+fn alphabet(symbols: bool) -> Vec<u8> {
+    if symbols {
+        [ALNUM, SYMBOLS].concat()
+    } else {
+        ALNUM.to_vec()
+    }
+}
+
+impl Opts {
+    fn entropy_bits(&self) -> f64 {
+        match &self.kind {
+            Kind::Passphrase { words, digits, .. } => {
+                f64::from(*words) * bits_per_word() + f64::from(*digits) * 10f64.log2()
+            }
+            Kind::Password { len, symbols } => f64::from(*len) * bits_per_char(*symbols),
+        }
+    }
+
+    fn describe_entropy(&self) -> String {
+        match &self.kind {
+            Kind::Passphrase { words, digits, .. } => format!(
+                "entropy: {words} words x {:.1} bits + {digits} digits x 3.3 bits = ~{:.1} bits",
+                bits_per_word(),
+                self.entropy_bits()
+            ),
+            Kind::Password { len, symbols } => format!(
+                "entropy: {len} chars x {:.2} bits = ~{:.1} bits",
+                bits_per_char(*symbols),
+                self.entropy_bits()
+            ),
+        }
+    }
 }
 
 enum Command {
@@ -51,15 +109,15 @@ enum Command {
 /// Parses argv without the program name. Error messages are bare;
 /// main() adds the "ppgen: " prefix and the --help hint.
 fn parse_args(args: &[String]) -> Result<Command, String> {
-    let mut opts = Opts {
-        words: DEFAULT_WORDS,
-        sep: "-".to_string(),
-        digits: 0,
-        capitalize: false,
-        verbose: false,
-    };
     let mut words: Option<u32> = None;
     let mut bits: Option<u32> = None;
+    let mut sep: Option<String> = None;
+    let mut digits: Option<u32> = None;
+    let mut capitalize = false;
+    let mut password: Option<Option<u32>> = None; // Some(None) = -p without a length
+    let mut symbols = false;
+    let mut verbose = false;
+    let mut passphrase_flag: Option<&str> = None; // first passphrase-only flag seen
 
     let mut it = args.iter();
     while let Some(flag) = it.next() {
@@ -73,7 +131,40 @@ fn parse_args(args: &[String]) -> Result<Command, String> {
                     return Err(format!("{flag} must be 1..={MAX_WORDS}, got {value}"));
                 }
                 words = Some(n);
+                passphrase_flag.get_or_insert(flag);
             }
+            "-d" | "--sep" => {
+                sep = Some(take_value(&mut it, flag)?.to_string());
+                passphrase_flag.get_or_insert(flag);
+            }
+            "-n" | "--digits" => {
+                let value = take_value(&mut it, flag)?;
+                let n = parse_num(flag, value)?;
+                if n > MAX_DIGITS {
+                    return Err(format!("{flag} must be 0..={MAX_DIGITS}, got {value}"));
+                }
+                digits = Some(n);
+                passphrase_flag.get_or_insert(flag);
+            }
+            "-c" | "--capitalize" => {
+                capitalize = true;
+                passphrase_flag.get_or_insert(flag);
+            }
+            "-p" | "--password" => {
+                // optional length: consume the next arg only if it is a number
+                let len = match it.clone().next().and_then(|v| v.parse::<u32>().ok()) {
+                    Some(n) => {
+                        it.next();
+                        if n == 0 || n > MAX_PASSWORD_LEN {
+                            return Err(format!("{flag} must be 1..={MAX_PASSWORD_LEN}, got {n}"));
+                        }
+                        Some(n)
+                    }
+                    None => None,
+                };
+                password = Some(len);
+            }
+            "--symbols" => symbols = true,
             "-b" | "--bits" => {
                 let value = take_value(&mut it, flag)?;
                 let n = parse_num(flag, value)?;
@@ -82,37 +173,65 @@ fn parse_args(args: &[String]) -> Result<Command, String> {
                 }
                 bits = Some(n);
             }
-            "-d" | "--sep" => opts.sep = take_value(&mut it, flag)?.to_string(),
-            "-n" | "--digits" => {
-                let value = take_value(&mut it, flag)?;
-                opts.digits = parse_num(flag, value)?;
-                if opts.digits > MAX_DIGITS {
-                    return Err(format!("{flag} must be 0..={MAX_DIGITS}, got {value}"));
-                }
-            }
-            "-c" | "--capitalize" => opts.capitalize = true,
-            "-v" | "--verbose" => opts.verbose = true,
+            "-v" | "--verbose" => verbose = true,
             other => return Err(format!("unknown option '{other}'")),
         }
     }
 
-    opts.words = match (words, bits) {
-        (Some(_), Some(_)) => return Err("-w and -b cannot be combined".to_string()),
-        (Some(w), None) => w,
-        (None, Some(b)) => words_for_bits(opts.digits, b)?,
-        (None, None) => DEFAULT_WORDS,
+    let kind = match password {
+        Some(explicit_len) => {
+            if let Some(flag) = passphrase_flag {
+                return Err(format!(
+                    "{flag} applies to passphrases and cannot be combined with -p"
+                ));
+            }
+            let len = match (explicit_len, bits) {
+                (Some(_), Some(_)) => return Err("-p N and -b cannot be combined".to_string()),
+                (Some(n), None) => n,
+                (None, Some(b)) => {
+                    length_for_bits(b, bits_per_char(symbols), MAX_PASSWORD_LEN, "chars")?
+                }
+                (None, None) => DEFAULT_PASSWORD_LEN,
+            };
+            Kind::Password { len, symbols }
+        }
+        None => {
+            if symbols {
+                return Err("--symbols requires -p".to_string());
+            }
+            let digits = digits.unwrap_or(0);
+            let words = match (words, bits) {
+                (Some(_), Some(_)) => return Err("-w and -b cannot be combined".to_string()),
+                (Some(w), None) => w,
+                (None, Some(b)) => {
+                    let from_digits = f64::from(digits) * 10f64.log2();
+                    let remaining = (f64::from(b) - from_digits).max(0.0);
+                    length_for_bits(remaining, bits_per_word(), MAX_WORDS, "words")?
+                }
+                (None, None) => DEFAULT_WORDS,
+            };
+            Kind::Passphrase {
+                words,
+                sep: sep.unwrap_or_else(|| "-".to_string()),
+                digits,
+                capitalize,
+            }
+        }
     };
-    Ok(Command::Generate(opts))
+    Ok(Command::Generate(Opts { kind, verbose }))
 }
 
-/// Smallest word count (at least 1) reaching `bits` of entropy together
-/// with `digits` random digits.
-fn words_for_bits(digits: u32, bits: u32) -> Result<u32, String> {
-    let from_digits = f64::from(digits) * 10f64.log2();
-    let needed = ((f64::from(bits) - from_digits) / bits_per_word()).ceil();
-    let n = needed.max(1.0) as u32;
-    if n > MAX_WORDS {
-        return Err(format!("-b {bits} needs {n} words, max is {MAX_WORDS}"));
+/// Smallest count (at least 1) of `unit`s worth `bits_each` that reaches `bits`.
+fn length_for_bits(
+    bits: impl Into<f64>,
+    bits_each: f64,
+    max: u32,
+    unit: &str,
+) -> Result<u32, String> {
+    let bits = bits.into();
+    let n = (bits / bits_each).ceil().max(1.0) as u32;
+    if n > max {
+        return Err(format!("-b {bits:.0} needs {n} {unit}, max is {max}"));
     }
     Ok(n)
 }
@@ -154,24 +273,42 @@ fn capitalize(word: &str) -> String {
 }
 
 fn generate(opts: &Opts, words: &[&str]) -> Result<String, getrandom::Error> {
-    let mut pw = String::new();
-    for k in 0..opts.words as usize {
-        if k > 0 {
-            pw.push_str(&opts.sep);
+    match &opts.kind {
+        Kind::Passphrase {
+            words: count,
+            sep,
+            digits,
+            capitalize: cap,
+        } => {
+            let mut pw = String::new();
+            for k in 0..*count as usize {
+                if k > 0 {
+                    pw.push_str(sep);
+                }
+                let idx = uniform(words.len() as u64)?;
+                let word = words[idx as usize];
+                if *cap {
+                    pw.push_str(&capitalize(word));
+                } else {
+                    pw.push_str(word);
+                }
+            }
+            if *digits > 0 {
+                let v = uniform(10u64.pow(*digits))?;
+                pw.push_str(&format!("{v:0width$}", width = *digits as usize));
+            }
+            Ok(pw)
         }
-        let idx = uniform(words.len() as u64)?;
-        let word = words[idx as usize];
-        if opts.capitalize {
-            pw.push_str(&capitalize(word));
-        } else {
-            pw.push_str(word);
+        Kind::Password { len, symbols } => {
+            let alphabet = alphabet(*symbols);
+            let mut pw = String::with_capacity(*len as usize);
+            for _ in 0..*len {
+                let idx = uniform(alphabet.len() as u64)?;
+                pw.push(alphabet[idx as usize] as char);
+            }
+            Ok(pw)
         }
     }
-    if opts.digits > 0 {
-        let v = uniform(10u64.pow(opts.digits))?;
-        pw.push_str(&format!("{v:0width$}", width = opts.digits as usize));
-    }
-    Ok(pw)
 }
 
 fn main() -> ExitCode {
@@ -206,13 +343,7 @@ fn main() -> ExitCode {
     };
 
     if opts.verbose {
-        eprintln!(
-            "entropy: {} words x {:.1} bits + {} digits x 3.3 bits = ~{:.1} bits",
-            opts.words,
-            bits_per_word(),
-            opts.digits,
-            opts.entropy_bits()
-        );
+        eprintln!("{}", opts.describe_entropy());
     }
 
     let mut out = io::stdout().lock();
@@ -237,6 +368,25 @@ mod tests {
         }
     }
 
+    fn phrase(v: &[&str]) -> (u32, String, u32, bool) {
+        match opts(v).kind {
+            Kind::Passphrase {
+                words,
+                sep,
+                digits,
+                capitalize,
+            } => (words, sep, digits, capitalize),
+            Kind::Password { .. } => panic!("expected Passphrase for {v:?}"),
+        }
+    }
+
+    fn password(v: &[&str]) -> (u32, bool) {
+        match opts(v).kind {
+            Kind::Password { len, symbols } => (len, symbols),
+            Kind::Passphrase { .. } => panic!("expected Password for {v:?}"),
+        }
+    }
+
     #[test]
     fn wordlist_integrity() {
         assert_eq!(WORDLIST.lines().count() as u64, EXPECTED_WORDS);
@@ -248,8 +398,22 @@ mod tests {
     }
 
     #[test]
+    fn alphabets_have_no_duplicates() {
+        for symbols in [false, true] {
+            let mut a = alphabet(symbols);
+            let n = a.len();
+            a.sort_unstable();
+            a.dedup();
+            assert_eq!(a.len(), n);
+            assert!(a.iter().all(|c| c.is_ascii_graphic()));
+        }
+        assert_eq!(alphabet(false).len(), 62);
+        assert_eq!(alphabet(true).len(), 88);
+    }
+
+    #[test]
     fn uniform_stays_in_range() {
-        for &n in &[2u64, 3, 6, 10, 1000, 4096, 7776] {
+        for &n in &[2u64, 3, 6, 10, 62, 88, 1000, 4096, 7776] {
             for _ in 0..1000 {
                 assert!(uniform(n).unwrap() < n);
             }
@@ -292,35 +456,95 @@ mod tests {
     }
 
     #[test]
+    fn password_uses_only_its_alphabet() {
+        let o = opts(&["-p", "200"]);
+        let pw = generate(&o, &[]).unwrap();
+        assert_eq!(pw.len(), 200);
+        assert!(pw.bytes().all(|b| ALNUM.contains(&b)), "{pw:?}");
+
+        let o = opts(&["-p", "200", "--symbols"]);
+        let pw = generate(&o, &[]).unwrap();
+        assert_eq!(pw.len(), 200);
+        assert!(
+            pw.bytes()
+                .all(|b| ALNUM.contains(&b) || SYMBOLS.contains(&b)),
+            "{pw:?}"
+        );
+        // 200 draws from 88 symbols: P(no symbol at all) = (62/88)^200 ~ 1e-31
+        assert!(pw.bytes().any(|b| SYMBOLS.contains(&b)), "{pw:?}");
+    }
+
+    #[test]
     fn entropy_estimate() {
-        let close = |a: f64, b: f64| (a - b).abs() < 0.05;
+        let close = |a: f64, b: f64| (a - b).abs() < 0.1;
         assert!(close(opts(&[]).entropy_bits(), 64.6));
         assert!(close(opts(&["-w", "4", "-n", "2"]).entropy_bits(), 58.3));
         assert!(close(opts(&["-c"]).entropy_bits(), 64.6)); // capitalize adds nothing
+        assert!(close(opts(&["-p"]).entropy_bits(), 95.3));
+        assert!(close(opts(&["-p", "--symbols"]).entropy_bits(), 103.3));
+        assert!(close(opts(&["-p", "10"]).entropy_bits(), 59.5));
     }
 
     #[test]
-    fn bits_picks_the_word_count() {
-        assert_eq!(opts(&["-b", "1"]).words, 1);
-        assert_eq!(opts(&["-b", "64"]).words, 5);
-        assert_eq!(opts(&["-b", "65"]).words, 6);
-        assert_eq!(opts(&["-b", "80"]).words, 7);
-        assert_eq!(opts(&["-b", "80", "-n", "4"]).words, 6);
-        assert_eq!(opts(&["-n", "8", "-b", "20"]).words, 1); // digits alone would do
+    fn bits_picks_the_length() {
+        assert_eq!(phrase(&["-b", "1"]).0, 1);
+        assert_eq!(phrase(&["-b", "64"]).0, 5);
+        assert_eq!(phrase(&["-b", "65"]).0, 6);
+        assert_eq!(phrase(&["-b", "80"]).0, 7);
+        assert_eq!(phrase(&["-b", "80", "-n", "4"]).0, 6);
+        assert_eq!(phrase(&["-n", "8", "-b", "20"]).0, 1); // digits alone would do
         assert!(opts(&["-b", "80"]).entropy_bits() >= 80.0);
-        assert!(parse_args(&args(&["-b", "0"])).is_err());
-        assert!(parse_args(&args(&["-b", "900"])).is_err()); // > 64 words
-        assert!(parse_args(&args(&["-b", "80", "-w", "5"])).is_err());
+
+        assert_eq!(password(&["-p", "-b", "80"]).0, 14);
+        assert_eq!(password(&["-p", "--symbols", "-b", "80"]).0, 13);
+        assert_eq!(password(&["-b", "1", "-p"]).0, 1);
+        assert!(opts(&["-p", "-b", "128"]).entropy_bits() >= 128.0);
+
+        for bad in [
+            &["-b", "0"][..],
+            &["-b", "900"],
+            &["-b", "80", "-w", "5"],
+            &["-p", "20", "-b", "80"],
+            &["-p", "-b", "2000"],
+        ] {
+            assert!(parse_args(&args(bad)).is_err(), "{bad:?}");
+        }
     }
 
     #[test]
-    fn parses_options() {
-        let o = opts(&[]);
-        assert_eq!((o.words, o.sep.as_str(), o.digits), (DEFAULT_WORDS, "-", 0));
-        assert!(!o.capitalize && !o.verbose);
-        let o = opts(&["-w", "3", "-d", "+", "-n", "2", "-c", "-v"]);
-        assert_eq!((o.words, o.sep.as_str(), o.digits), (3, "+", 2));
-        assert!(o.capitalize && o.verbose);
+    fn parses_passphrase_options() {
+        assert_eq!(phrase(&[]), (DEFAULT_WORDS, "-".to_string(), 0, false));
+        assert_eq!(
+            phrase(&["-w", "3", "-d", "+", "-n", "2", "-c"]),
+            (3, "+".to_string(), 2, true)
+        );
+        assert!(!opts(&[]).verbose);
+        assert!(opts(&["-v"]).verbose);
+    }
+
+    #[test]
+    fn parses_password_options() {
+        assert_eq!(password(&["-p"]), (DEFAULT_PASSWORD_LEN, false));
+        assert_eq!(password(&["-p", "20"]), (20, false));
+        assert_eq!(
+            password(&["--password", "--symbols"]),
+            (DEFAULT_PASSWORD_LEN, true)
+        );
+        assert_eq!(password(&["-p", "-v"]), (DEFAULT_PASSWORD_LEN, false)); // -v is not a length
+        assert!(opts(&["-p", "-v"]).verbose);
+
+        for bad in [
+            &["-p", "0"][..],
+            &["-p", "257"],
+            &["--symbols"],
+            &["-p", "-w", "5"],
+            &["-p", "-d", "/"],
+            &["-p", "-n", "2"],
+            &["-p", "-c"],
+            &["-c", "-p"],
+        ] {
+            assert!(parse_args(&args(bad)).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

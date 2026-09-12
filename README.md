@@ -5,7 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A small command-line tool that generates random, easy-to-remember passphrases
-from the EFF wordlist.
+from the EFF wordlist — or plain random passwords, when that is what a site
+wants.
 
 ```
 $ ppgen
@@ -17,6 +18,10 @@ showdown.plenty.pantomime.blurt.bristle.bonus
 $ ppgen -b 80 -v
 entropy: 7 words x 12.9 bits + 0 digits x 3.3 bits = ~90.5 bits
 geometry-striving-vitally-desolate-liftoff-unpiloted-chomp
+$ ppgen -p
+alAI5ZFKNe5TDXq5
+$ ppgen -p 20 --symbols
+wGdr]jp}7bM)FggJDQg%
 ```
 
 ## Installing
@@ -44,11 +49,19 @@ A single ~370 KB binary with the wordlist embedded. The only dependency is the
 
 ```
 ppgen [options]
+
+Passphrase (default):
   -w, --words <N>    words in the passphrase (default: 5, max: 64)
-  -b, --bits <N>     instead of -w: use as many words as needed for N bits of entropy
   -d, --sep <S>      separator between words (default: '-')
   -n, --digits <N>   append a random number, N digits (default: 0, max: 8)
   -c, --capitalize   capitalize each word (adds no entropy; for password policies)
+
+Password:
+  -p, --password [N] random password of N characters from A-Za-z0-9 (default: 16, max: 256)
+      --symbols      also use !@#$%^&*()-_=+[]{};:,.<>?/
+
+Both:
+  -b, --bits <N>     instead of -w or -p N: use the length needed for N bits of entropy
   -v, --verbose      print the entropy estimate to stderr
   -h, --help         print this help
 ```
@@ -61,29 +74,35 @@ stderr, so `ppgen -v | pbcopy` copies just the passphrase.
 Capitalizing every word is a fixed rule, so it adds nothing an attacker has to
 guess; digits do add ~3.3 bits each, but a sixth word adds ~12.9.
 
+`-p` is for secrets you will never type by hand — anything that lives in a
+password manager. `--symbols` widens the alphabet from 62 to 88 characters,
+which is worth ~0.5 bits per character; it is there for policies that demand
+a symbol, not because it makes a 16-character password meaningfully stronger.
+Quotes, backslash, pipe and space are deliberately excluded.
+
 ## Entropy
 
 Each word from the EFF list (7776 words) contributes log₂(7776) ≈ 12.9 bits,
 each digit log₂(10) ≈ 3.3 bits — so four digits are worth about one word.
 
-For comparison, one character of a uniformly random `A-Za-z0-9` password
-contributes log₂(62) ≈ 5.95 bits. The last column shows how long such a
-password would have to be to match the passphrase:
+For comparison, one character of a random `A-Za-z0-9` password (`-p`)
+contributes log₂(62) ≈ 5.95 bits, so each passphrase below has a password of
+roughly the same strength on the right:
 
-| Options     | Example                                                       | Entropy, bits | Random `A-Za-z0-9`, chars |
-|-------------|---------------------------------------------------------------|--------------:|--------------------------:|
-| `-w 3`      | `detergent-alfalfa-rockband`                                  |            39 |                         7 |
-| `-w 3 -n 2` | `lugged-daytime-exploit85`                                    |            45 |                         8 |
-| `-w 4`      | `mouse-headsman-twisting-whimsical`                           |            52 |                         9 |
-| `-w 3 -n 4` | `relay-stubbly-tumbling0141`                                  |            52 |                         9 |
-| `-w 4 -n 2` | `quarry-lapel-headlamp-stagnant95`                            |            58 |                        10 |
-| `-w 5`      | `jury-many-smock-dose-sterility` (default)                    |            65 |                        11 |
-| `-w 4 -n 4` | `taunt-demeanor-throbbing-angrily4431`                        |            65 |                        11 |
-| `-w 5 -n 3` | `ripping-greedy-rind-repose-factoid340`                       |            75 |                        13 |
-| `-w 6`      | `slacked-polymer-haven-radiance-spent-washable`               |            78 |                        13 |
-| `-w 6 -n 2` | `morphing-quit-backpack-context-aroma-retouch28`              |            84 |                        14 |
-| `-w 7`      | `dreamily-stuffy-defraud-budding-plank-numerate-refutable`    |            90 |                        15 |
-| `-w 8`      | `avoid-bartender-hut-conclude-bulldozer-lake-qualifier-rehab` |           103 |                        17 |
+| Passphrase  | Example                                                       | Entropy, bits | Password | Example             |
+|-------------|---------------------------------------------------------------|--------------:|----------|---------------------|
+| `-w 3`      | `detergent-alfalfa-rockband`                                  |            39 | `-p 7`   | `CPddj3B`           |
+| `-w 3 -n 2` | `lugged-daytime-exploit85`                                    |            45 | `-p 8`   | `VZzngs5z`          |
+| `-w 4`      | `mouse-headsman-twisting-whimsical`                           |            52 | `-p 9`   | `t5kXgQrNd`         |
+| `-w 3 -n 4` | `relay-stubbly-tumbling0141`                                  |            52 | `-p 9`   | `lPtbWS6S4`         |
+| `-w 4 -n 2` | `quarry-lapel-headlamp-stagnant95`                            |            58 | `-p 10`  | `2xZSIvzX1H`        |
+| `-w 5`      | `jury-many-smock-dose-sterility` (default)                    |            65 | `-p 11`  | `8gy05d2qGMs`       |
+| `-w 4 -n 4` | `taunt-demeanor-throbbing-angrily4431`                        |            65 | `-p 11`  | `1x3HOieoEQX`       |
+| `-w 5 -n 3` | `ripping-greedy-rind-repose-factoid340`                       |            75 | `-p 13`  | `O0PsDeMQjVFHh`     |
+| `-w 6`      | `slacked-polymer-haven-radiance-spent-washable`               |            78 | `-p 13`  | `4qkpB1ESish0E`     |
+| `-w 6 -n 2` | `morphing-quit-backpack-context-aroma-retouch28`              |            84 | `-p 14`  | `0mXEeb7UHd8OSG`    |
+| `-w 7`      | `dreamily-stuffy-defraud-budding-plank-numerate-refutable`    |            90 | `-p 15`  | `Z774Rxpfu1898Hv`   |
+| `-w 8`      | `avoid-bartender-hut-conclude-bulldozer-lake-qualifier-rehab` |           103 | `-p 17`  | `ZnWQzRtJN36KzacOc` |
 
 The passphrase is longer to type but far easier to remember; the entropy is
 the same as long as the words are chosen by a proper random source, which is
@@ -98,6 +117,7 @@ It depends on what an attacker can do with a guess:
 | Online guessing against a service with rate limiting            | ≥ 40 bits   | `-w 4`      |
 | Offline cracking of a leaked hash protected by a slow KDF (password manager vault, LUKS/FileVault, SSH key) | ≥ 75 bits | `-w 6` or `-b 75` |
 | Offline cracking where the KDF is fast or unknown               | ≥ 90 bits   | `-w 7` or `-b 90` |
+| Anything stored in a password manager (never typed)             | ≥ 90 bits   | `-p` (16 chars, ~95 bits) |
 
 `-b` picks the word count for you and `-v` shows what you got. Passphrases are
 for secrets you type from memory; everything else belongs in a password
@@ -119,6 +139,8 @@ harm than good, and checking against breach lists is what actually helps.
   would skew `r % 7776` are discarded).
 - **Wordlist integrity**: on every run the embedded list is checked to contain
   exactly 7776 words.
+- **Same sampling for passwords**: each character is an independent uniform
+  draw from the alphabet, no shuffling of a "one of each class" template.
 - **Output discipline**: the passphrase is the only line on stdout; diagnostics
   go to stderr; exit codes 0/1/2 as above.
 - Tests: unit tests for wordlist integrity, sampling range and uniformity,
