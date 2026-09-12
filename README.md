@@ -11,6 +11,13 @@ $ ppgen -w 6 -d "."
 showdown.plenty.pantomime.blurt.bristle.bonus
 ```
 
+## Installing
+
+Prebuilt binaries for macOS (Apple Silicon) and Linux (x86-64 and ARM64,
+statically linked) are attached to each
+[GitHub release](https://github.com/s12v/ppgen/releases). Unpack and put
+`ppgen` somewhere on your `PATH`.
+
 ## Building
 
 ```
