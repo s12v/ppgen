@@ -14,10 +14,16 @@ showdown.plenty.pantomime.blurt.bristle.bonus
 
 ## Installing
 
-Prebuilt binaries for macOS (Apple Silicon) and Linux (x86-64 and ARM64,
-statically linked) are attached to each
-[GitHub release](https://github.com/s12v/ppgen/releases). Unpack and put
-`ppgen` somewhere on your `PATH`.
+Homebrew (macOS and Linux):
+
+```
+brew install s12v/tap/ppgen
+```
+
+Or grab a prebuilt binary for macOS (Apple Silicon, Intel) or Linux (x86-64,
+ARM64; statically linked) from the
+[releases page](https://github.com/s12v/ppgen/releases) and put `ppgen`
+somewhere on your `PATH`.
 
 ## Building
 
