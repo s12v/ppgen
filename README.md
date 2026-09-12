@@ -1,6 +1,7 @@
 # ppgen
 
-Command-line diceware passphrase generator using the EFF large wordlist.
+A small command-line tool that generates random, easy-to-remember passphrases
+from the EFF wordlist.
 
 ```
 $ ppgen
