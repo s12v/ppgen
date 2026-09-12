@@ -1,0 +1,16 @@
+[package]
+name = "ppgen"
+version = "0.1.0"
+edition = "2024"
+description = "Diceware passphrase generator (EFF large wordlist)"
+license = "MIT"
+
+[dependencies]
+getrandom = "0.3"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
