@@ -23,7 +23,7 @@ jobs:
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: rustup update stable && rustup default stable && rustup component add rustfmt clippy
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
@@ -46,7 +46,7 @@ jobs:
             os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - run: rustup update stable && rustup default stable && rustup target add ${{ matrix.target }}
 
@@ -68,7 +68,7 @@ jobs:
             -C target/${{ matrix.target }}/release ppgen \
             -C "$GITHUB_WORKSPACE" LICENSE README.md
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ppgen-${{ matrix.target }}
           path: ppgen-${{ matrix.target }}.tar.gz
@@ -81,7 +81,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -101,7 +101,7 @@ jobs:
       TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Update formula in s12v/homebrew-tap
         run: |
           if [ -z "$TAP_TOKEN" ]; then
