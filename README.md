@@ -80,8 +80,9 @@ the point of this tool.
   exactly 7776 words.
 - **Output discipline**: the passphrase is the only line on stdout; diagnostics
   go to stderr; exit codes 0/1/2 as above.
-- Unit tests cover wordlist integrity, sampling range and uniformity, digit
-  padding, and argument parsing.
+- Tests: unit tests for wordlist integrity, sampling range and uniformity,
+  digit padding and argument parsing; integration tests run the built binary
+  and check exit codes, stdout/stderr discipline and output shape.
 
 ## Wordlist
 
