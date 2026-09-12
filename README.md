@@ -48,23 +48,22 @@ each digit log₂(10) ≈ 3.3 bits — so four digits are worth about one word.
 
 For comparison, one character of a uniformly random `A-Za-z0-9` password
 contributes log₂(62) ≈ 5.95 bits. The last column shows how long such a
-password would have to be to match the passphrase, with a sample of what it
-looks like:
+password would have to be to match the passphrase:
 
-| Options     | Example passphrase                                            | Entropy   | Equivalent random password (`A-Za-z0-9`) |
-|-------------|---------------------------------------------------------------|-----------|------------------------------------------|
-| `-w 3`      | `detergent-alfalfa-rockband`                                  | ~39 bits  | 7 chars — `90UmizL`                      |
-| `-w 3 -n 2` | `lugged-daytime-exploit85`                                    | ~45 bits  | 8 chars — `54LP0Al8`                     |
-| `-w 4`      | `mouse-headsman-twisting-whimsical`                           | ~52 bits  | 9 chars — `snjGoq6Wz`                    |
-| `-w 3 -n 4` | `relay-stubbly-tumbling0141`                                  | ~52 bits  | 9 chars — `diiZTiBuz`                    |
-| `-w 4 -n 2` | `quarry-lapel-headlamp-stagnant95`                            | ~58 bits  | 10 chars — `t3aEREjgst`                  |
-| `-w 5`      | `jury-many-smock-dose-sterility` (default)                    | ~65 bits  | 11 chars — `A6GlWi55IKF`                 |
-| `-w 4 -n 4` | `taunt-demeanor-throbbing-angrily4431`                        | ~65 bits  | 11 chars — `XVZhRBsej8c`                 |
-| `-w 5 -n 3` | `ripping-greedy-rind-repose-factoid340`                       | ~75 bits  | 13 chars — `Poa7y7KbkgxvD`               |
-| `-w 6`      | `slacked-polymer-haven-radiance-spent-washable`               | ~78 bits  | 13 chars — `bMRo0Uisa77ML`               |
-| `-w 6 -n 2` | `morphing-quit-backpack-context-aroma-retouch28`              | ~84 bits  | 14 chars — `c3cxzKwDx6Irub`              |
-| `-w 7`      | `dreamily-stuffy-defraud-budding-plank-numerate-refutable`    | ~90 bits  | 15 chars — `ggQe4mHXNNBCkhu`             |
-| `-w 8`      | `avoid-bartender-hut-conclude-bulldozer-lake-qualifier-rehab` | ~103 bits | 17 chars — `sKaa7z3VYEKggYMRX`           |
+| Options     | Example                                                       | Entropy, bits | Random `A-Za-z0-9`, chars |
+|-------------|---------------------------------------------------------------|--------------:|--------------------------:|
+| `-w 3`      | `detergent-alfalfa-rockband`                                  |            39 |                         7 |
+| `-w 3 -n 2` | `lugged-daytime-exploit85`                                    |            45 |                         8 |
+| `-w 4`      | `mouse-headsman-twisting-whimsical`                           |            52 |                         9 |
+| `-w 3 -n 4` | `relay-stubbly-tumbling0141`                                  |            52 |                         9 |
+| `-w 4 -n 2` | `quarry-lapel-headlamp-stagnant95`                            |            58 |                        10 |
+| `-w 5`      | `jury-many-smock-dose-sterility` (default)                    |            65 |                        11 |
+| `-w 4 -n 4` | `taunt-demeanor-throbbing-angrily4431`                        |            65 |                        11 |
+| `-w 5 -n 3` | `ripping-greedy-rind-repose-factoid340`                       |            75 |                        13 |
+| `-w 6`      | `slacked-polymer-haven-radiance-spent-washable`               |            78 |                        13 |
+| `-w 6 -n 2` | `morphing-quit-backpack-context-aroma-retouch28`              |            84 |                        14 |
+| `-w 7`      | `dreamily-stuffy-defraud-budding-plank-numerate-refutable`    |            90 |                        15 |
+| `-w 8`      | `avoid-bartender-hut-conclude-bulldozer-lake-qualifier-rehab` |           103 |                        17 |
 
 The passphrase is longer to type but far easier to remember; the entropy is
 the same as long as the words are chosen by a proper random source, which is
