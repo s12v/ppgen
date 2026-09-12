@@ -1,5 +1,9 @@
 # ppgen
 
+[![CI](https://github.com/s12v/ppgen/actions/workflows/ci.yml/badge.svg)](https://github.com/s12v/ppgen/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/s12v/ppgen)](https://github.com/s12v/ppgen/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A small command-line tool that generates random, easy-to-remember passphrases
 from the EFF wordlist.
 
@@ -14,14 +18,12 @@ showdown.plenty.pantomime.blurt.bristle.bonus
 
 ## Installing
 
-Homebrew (macOS and Linux):
-
 ```
 brew install s12v/tap/ppgen
 ```
 
-Or grab a prebuilt binary for macOS (Apple Silicon, Intel) or Linux (x86-64,
-ARM64; statically linked) from the
+Works on macOS and Linux. Without Homebrew, grab a prebuilt binary for macOS
+(Apple Silicon, Intel) or Linux (x86-64, ARM64; statically linked) from the
 [releases page](https://github.com/s12v/ppgen/releases) and put `ppgen`
 somewhere on your `PATH`.
 
