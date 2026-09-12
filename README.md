@@ -30,7 +30,7 @@ wGdr]jp}7bM)FggJDQg%
 brew install s12v/tap/ppgen
 ```
 
-Works on macOS and Linux. Without Homebrew, grab a prebuilt binary for macOS
+Works on macOS and Linux; later, `brew upgrade ppgen` picks up new releases. Without Homebrew, grab a prebuilt binary for macOS
 (Apple Silicon, Intel) or Linux (x86-64, ARM64; statically linked) from the
 [releases page](https://github.com/s12v/ppgen/releases) and put `ppgen`
 somewhere on your `PATH`.
