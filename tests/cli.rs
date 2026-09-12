@@ -95,6 +95,56 @@ fn digits_are_appended_exactly_n_times() {
 }
 
 #[test]
+fn capitalize_uppercases_the_first_letter_of_each_word() {
+    let o = ppgen(&["-w", "4", "-d", "/", "-c"]);
+    assert!(o.status.success());
+    let line = single_line(&o);
+    let words: Vec<&str> = line.split('/').collect();
+    assert_eq!(words.len(), 4);
+    for w in words {
+        let (first, rest) = w.split_at(1);
+        assert!(first.chars().all(|c| c.is_ascii_uppercase()), "{line:?}");
+        assert!(
+            rest.chars().all(|c| c.is_ascii_lowercase() || c == '-'),
+            "{line:?}"
+        );
+        assert!(
+            WORDLIST.lines().any(|l| l == w.to_ascii_lowercase()),
+            "{w:?}"
+        );
+    }
+}
+
+#[test]
+fn verbose_prints_entropy_to_stderr_only() {
+    let o = ppgen(&["-v", "-w", "4", "-n", "2"]);
+    assert!(o.status.success());
+    single_line(&o); // stdout is still just the passphrase
+    let err = stderr(&o);
+    assert_eq!(
+        err,
+        "entropy: 4 words x 12.9 bits + 2 digits x 3.3 bits = ~58.3 bits\n"
+    );
+
+    assert!(ppgen(&["-w", "4"]).stderr.is_empty());
+}
+
+#[test]
+fn bits_chooses_the_word_count() {
+    let o = ppgen(&["-b", "80", "-d", "/", "-v"]);
+    assert!(o.status.success());
+    assert_eq!(single_line(&o).split('/').count(), 7);
+    assert!(
+        stderr(&o).starts_with("entropy: 7 words"),
+        "{:?}",
+        stderr(&o)
+    );
+
+    let o = ppgen(&["-b", "80", "-n", "4", "-d", "/"]);
+    assert_eq!(single_line(&o).split('/').count(), 6);
+}
+
+#[test]
 fn two_runs_differ() {
     // 65 bits of entropy: a collision here means the RNG is broken.
     assert_ne!(stdout(&ppgen(&[])), stdout(&ppgen(&[])));
@@ -120,6 +170,10 @@ fn bad_arguments_go_to_stderr_with_exit_two() {
         &["-w", "abc"],
         &["-n", "9"],
         &["-d"],
+        &["-b"],
+        &["-b", "0"],
+        &["-b", "900"],
+        &["-b", "80", "-w", "5"],
     ];
     for args in cases {
         let o = ppgen(args);

@@ -14,6 +14,9 @@ $ ppgen -w 4 -n 2
 latitude-maker-garden-skillful73
 $ ppgen -w 6 -d "."
 showdown.plenty.pantomime.blurt.bristle.bonus
+$ ppgen -b 80 -v
+entropy: 7 words x 12.9 bits + 0 digits x 3.3 bits = ~90.5 bits
+geometry-striving-vitally-desolate-liftoff-unpiloted-chomp
 ```
 
 ## Installing
@@ -42,13 +45,21 @@ A single ~370 KB binary with the wordlist embedded. The only dependency is the
 ```
 ppgen [options]
   -w, --words <N>    words in the passphrase (default: 5, max: 64)
+  -b, --bits <N>     instead of -w: use as many words as needed for N bits of entropy
   -d, --sep <S>      separator between words (default: '-')
   -n, --digits <N>   append a random number, N digits (default: 0, max: 8)
+  -c, --capitalize   capitalize each word (adds no entropy; for password policies)
+  -v, --verbose      print the entropy estimate to stderr
   -h, --help         print this help
 ```
 
 Exit codes: `0` success, `1` RNG or output failure, `2` invalid arguments.
-`--help` prints to stdout and exits 0; all diagnostics go to stderr.
+`--help` prints to stdout and exits 0; all diagnostics (including `-v`) go to
+stderr, so `ppgen -v | pbcopy` copies just the passphrase.
+
+`-c` and `-n` exist for sites that insist on an uppercase letter or a digit.
+Capitalizing every word is a fixed rule, so it adds nothing an attacker has to
+guess; digits do add ~3.3 bits each, but a sixth word adds ~12.9.
 
 ## Entropy
 
@@ -78,6 +89,28 @@ The passphrase is longer to type but far easier to remember; the entropy is
 the same as long as the words are chosen by a proper random source, which is
 the point of this tool.
 
+## How many words?
+
+It depends on what an attacker can do with a guess:
+
+| Threat                                                          | Target      | Command     |
+|-----------------------------------------------------------------|-------------|-------------|
+| Online guessing against a service with rate limiting            | ≥ 40 bits   | `-w 4`      |
+| Offline cracking of a leaked hash protected by a slow KDF (password manager vault, LUKS/FileVault, SSH key) | ≥ 75 bits | `-w 6` or `-b 75` |
+| Offline cracking where the KDF is fast or unknown               | ≥ 90 bits   | `-w 7` or `-b 90` |
+
+`-b` picks the word count for you and `-v` shows what you got. Passphrases are
+for secrets you type from memory; everything else belongs in a password
+manager as a long random string.
+
+Two things matter more than the exact number: take the phrase as generated
+(hand-picking or "improving" words removes entropy, because people are
+predictable), and never reuse it. [NIST SP 800-63B][nist] says the same about
+passwords in general: length beats complexity rules, forced rotation does more
+harm than good, and checking against breach lists is what actually helps.
+
+[nist]: https://pages.nist.gov/800-63-4/sp800-63b.html
+
 ## Why you can trust it
 
 - **Cryptographic RNG**: the OS entropy source via `getrandom`; no
@@ -89,8 +122,8 @@ the point of this tool.
 - **Output discipline**: the passphrase is the only line on stdout; diagnostics
   go to stderr; exit codes 0/1/2 as above.
 - Tests: unit tests for wordlist integrity, sampling range and uniformity,
-  digit padding and argument parsing; integration tests run the built binary
-  and check exit codes, stdout/stderr discipline and output shape.
+  digit padding, entropy math and argument parsing; integration tests run the
+  built binary and check exit codes, stdout/stderr discipline and output shape.
 
 ## Wordlist
 
