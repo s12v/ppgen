@@ -6,7 +6,7 @@ description = "Diceware passphrase generator (EFF large wordlist)"
 license = "MIT"
 
 [dependencies]
-getrandom = "0.3"
+getrandom = "0.4"
 
 [profile.release]
 opt-level = "z"
