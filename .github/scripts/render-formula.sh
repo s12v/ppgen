@@ -18,7 +18,6 @@ cat <<RUBY
 class Ppgen < Formula
   desc "Random, easy-to-remember passphrases from the EFF wordlist"
   homepage "https://github.com/s12v/ppgen"
-  version "${version}"
   license "MIT"
 
   on_macos do
